@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="01 each.js"></script>
+</head>
+<body>
+    <script>
+        // 3. reduce는 받은 list의 값을 연속적으로 iter에 적용하며 결과를 memo에 축약해나가는 함수
+
+        /* 
+        slice는 array에만 사용 가능하므로 array like 객체에서도 쓸수있는 함수를 만들어보자.
+        
+        array like 객체를 slice해 array로 만들어보자.
+
+        var a = document.querySelectorAll('*'); 
+        -> {8} [html, head, meta, title, ...]
+        
+        var slice = Array.prototype.slice;
+        
+        slice.call(a, 2);
+        -> {6} [meta, title, ...]
+
+        slice.call(a, 2).constructor;
+        ->  function Array() { [native code] }
+        */
+    
+        var slice = Array.prototype.slice;
+
+        function _rest(list, num) { // 제외시킬만큼(자를만큼)의 num
+            return slice.call(list, num || 1);  // num이 없으면 기본값 1
+        }
+
+        function _reduce(list, iter, memo) {
+            if (arguments.length == 2) {
+                memo = list[0];
+                list = _rest(list);   
+            }
+            _each(list, function(val) {
+                memo = iter(memo, val); // add(memo, list[i])와 같음
+            });
+            return memo;
+            // return iter(iter(iter(0,1), 2), 3);
+        }
+
+        console.log(
+            _reduce([1,2,3], add, 0));  // 6
+        console.log(
+            _reduce([1,2,3], add));  // 6
+        
+        /*
+        memo = add(0, 1);
+        memo = add(memo, 2);
+        memo = add(memo, 3);
+        return memo;
+        */
+
+
+
+        // 4. 파이프라인 만들기
+
+        // 1) _pipe 인자로 함수만 받는 함수로, 함수를 연속적으로 실행 가능. 추상화된 버전이 reduce
+
+        function _pipe() {
+            var fns = arguments;    // fns는 인자로 들어온 함수들 
+            return function(arg) {  // arg는 f1(1)의 1
+                return _reduce(fns, function(arg, fn) { // 모든함수(fns)를 돌면서 첫번째함수(fn)에  
+                    return fn(arg); // 인자(arg)를 적용한 결과(fn(arg))는 다시 arg로 리턴하고, 또 fn에 적용하는 것을 반복
+                }, arg)
+            }
+        }
+
+        function _go(arg) {
+            var fns = _rest(arguments); // 아래 go함수에서 첫번째 인자(1)가 제외된 배열이 만들어짐
+            return _pipe.apply(null, fns)(arg);
+        }
+
+        var f1 = _pipe(
+            function(a) { return a + 1; },  // 1 + 1 
+            function(a) { return a * 2; }); // 2 * 2;
+
+        console.log( f1(1) );
+
+        // 2) _go : 즉시실행되는 pipe함수. 첫번째 인자를 값으로 받고, 두번째부터 함수로 받는다.
+        _go(1,
+            function(a) { return a + 1; },  
+            function(a) { return a * 2; },
+            console.log);
+
+        // 3) users에 _go 적용
+        // 기존 users
+        console.log(
+            _map(
+                _filter(users, function(user) { return user.age >= 30; }),
+                _get('home')));
+
+        console.log(
+            _map(
+                _filter(users, function(user) { return user.age < 30; }),
+                _get('age')));
+
+        // go 적용 users
+        _go(users,
+            function(users) {
+                return _filter(users, function(user) {
+                    return user.age >= 30;
+                });
+            },
+            function(users) {
+                return _map(users, _get('name'));
+            },
+            console.log);
+
+        _go(users,
+            function(users) {
+                return _filter(users, function(user) {
+                    return user.age < 30;
+                });
+            },
+            function(users) {
+                return _map(users, _get('age'));
+            },
+            console.log);
+
+
+        // curryr 적용 users
+        /*
+        console.log(_map([1, 2, 3], function(val) { return val * 2; }));
+        console.log(_map(function(val) { return val * 2;})([1, 2, 3]));
+        */
+
+        _go(users,
+            _filter(function(users) { return user.age >= 30; }),
+            _map(_get('name')), 
+            console.log);
+
+        _go(users,
+            filter(users => user.age < 30),
+            _map(_get('age')),
+            console.log);
+        
+    </script>
+</body>
+</html>
